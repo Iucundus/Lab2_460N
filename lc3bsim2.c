@@ -415,43 +415,119 @@ short getBits(int whole, int start, int end) {
 	return (whole >> end) & (0xFFFF >> (15 - start + end));
 }
 
+/*
+ * Set NZP bits based on argument value
+ */
+void setCC(int value) {
+	NEXT_LATCHES.N = (value < 0);
+	NEXT_LATCHES.Z = (value == 0);
+	NEXT_LATCHES.P = (value > 0);
+}
+
+/*
+ * Sign-extend argument x of length len bits
+ */
+short SEXT(short x, int len) {
+	if (x >> (len-1)) { //Is negative
+		return x | (0xFFFF << len);
+	} else
+		return x;
+}
+
+//short signed addition works
+
 void add(int op) {
 	short dr;
 	short sr1;
 	short sr2;
 	short imm5;
 
-	if (op & 0x0020) { // Immediate
-		dr = getBits(op, 11, 9);
-		sr1 = getBits(op, 8, 6);
-		imm5 = getBits(op, 4, 0);
-	} else { // Register
+	dr = getBits(op, 11, 9);
+	sr1 = getBits(op, 8, 6);
 
+	if (op & 0x0020) { // Immediate
+		imm5 = getBits(op, 4, 0);
+		NEXT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr1] + SEXT(imm5, 5);
+	} else { // Register
+		sr2 = getBits(op, 2, 0);
+		NEXT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr1] + CURRENT_LATCHES.REGS[sr2];
 	}
+	setCC(NEXT_LATCHES.REGS[dr]);
 }
 
 void and(int op) {
-	printf("Instruction: and");
+	short dr;
+	short sr1;
+	short sr2;
+	short imm5;
+
+	dr = getBits(op, 11, 9);
+	sr1 = getBits(op, 8, 6);
+
+	if (op & 0x0020) { // Immediate
+		imm5 = getBits(op, 4, 0);
+		NEXT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr1] & SEXT(imm5, 5);
+	} else { // Register
+		sr2 = getBits(op, 2, 0);
+		NEXT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr1] & CURRENT_LATCHES.REGS[sr2];
+	}
+	setCC(NEXT_LATCHES.REGS[dr]);
 }
 
 void br(int op) {
-	printf("Instruction: br");
+	short n = getBits(op, 11, 11);
+	short z = getBits(op, 10, 10);
+	short p = getBits(op, 9, 9);
+	short PCoffset9 = getBits(op, 8, 0);
+
+	if ((n && CURRENT_LATCHES.N) ||
+		(z && CURRENT_LATCHES.Z) ||
+		(p && CURRENT_LATCHES.P))
+		NEXT_LATCHES.PC = NEXT_LATCHES.PC + (SEXT(PCoffset9) << 1); //Probably should not left shift? PC is stored as /2
 }
 
 void jmp(int op) {
-	printf("Instruction: jmp");
+	short BaseR = getBits(op, 8, 6);
+	NEXT_LATCHES.PC = BaseR;
 }
 
 void jsr(int op) {
-	printf("Instruction: jsr");
+	NEXT_LATCHES.REGS[7] = NEXT_LATCHES.PC;
+	if (op & 0x0800) { // PC offset
+		short PCoffset11 = getBits(op, 10, 0);
+		NEXT_LATCHES.PC = NEXT_LATCHES.PC + (SEXT(PCoffset11, 11) << 1); //Left shift, again?
+	} else { // Register
+		short BaseR = getBits(op, 8, 6);
+		NEXT_LATCHES.PC = CURRENT_LATCHES.REGS[BaseR];
+	}
 }
 
 void ldb(int op) {
-	printf("Instruction: ldb");
+	short dr = getBits(op, 11, 9);
+	short BaseR = getBits(op, 8, 6);
+	short boffset6 = getBits(op, 5, 0);
+
+	int addr = BaseR + SEXT(boffset6, 6);
+
+	NEXT_LATCHES.REGS[dr] = SEXT(MEMORY[addr/2][addr%2]);
+	setCC(NEXT_LATCHES.REGS[dr]);
 }
 
 void ldw(int op) {
-	printf("Instruction: ldw");
+	short dr = getBits(op, 11, 9);
+	short BaseR = getBits(op, 8, 6);
+	short offset6 = getBits(op, 5, 0);
+
+	/*
+	 * if (CURRENT_LATCHES[BaseR] & 0x01)
+	 * 		illegal operand exception
+	 */
+
+	NEXT_LATCHES.REGS[dr] = MEMORY[BaseR + (SEXT(offset6, 6) << 1)][1];
+	NEXT_LATCHES.REGS[dr] = NEXT_LATCHES.REGS[dr] << 8;
+	NEXT_LATCHES.REGS[dr] |= MEMORY[BaseR + (SEXT(offset6, 6) << 1)][0];
+
+	setCC(NEXT_LATCHES.REGS[dr]);
 }
 
 void lea(int op) {
@@ -501,6 +577,6 @@ void process_instruction(){
 	CurrentInstruction = CurrentInstruction << 8;
 	CurrentInstruction |= MEMORY[CURRENT_LATCHES.PC/2][0];
 
-	NEXT_LATCHES.PC += 2;
+	NEXT_LATCHES.PC ++;
 	ops[CurrentInstruction>>12](CurrentInstruction);
 }
