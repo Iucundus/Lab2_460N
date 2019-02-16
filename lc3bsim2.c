@@ -416,7 +416,10 @@ void process_instruction(){
    *       -Decode 
    *       -Execute
    *       -Update NEXT_LATCHES
-   */     
-
+   */
+	int CurrentInstruction = MEMORY[CURRENT_LATCHES.PC/2][1];
+	CurrentInstruction = CurrentInstruction << 8;
+	CurrentInstruction |= MEMORY[CURRENT_LATCHES.PC/2][0];
+	printf("PC is at %04x and instr is %04x\n", CURRENT_LATCHES.PC, CurrentInstruction);
 }
 
