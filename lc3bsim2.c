@@ -406,20 +406,101 @@ int main(int argc, char *argv[]) {
 
 /***************************************************************/
 
+/*
+ * Pick a range of bits from the whole instruction
+ * start and end are indexes as in the printed handout
+ * start < end
+ */
+short getBits(int whole, int start, int end) {
+	return (whole >> end) & (0xFFFF >> (15 - start + end));
+}
 
+void add(int op) {
+	short dr;
+	short sr1;
+	short sr2;
+	short imm5;
+
+	if (op & 0x0020) { // Immediate
+		dr = getBits(op, 11, 9);
+		sr1 = getBits(op, 8, 6);
+		imm5 = getBits(op, 4, 0);
+	} else { // Register
+
+	}
+}
+
+void and(int op) {
+	printf("Instruction: and");
+}
+
+void br(int op) {
+	printf("Instruction: br");
+}
+
+void jmp(int op) {
+	printf("Instruction: jmp");
+}
+
+void jsr(int op) {
+	printf("Instruction: jsr");
+}
+
+void ldb(int op) {
+	printf("Instruction: ldb");
+}
+
+void ldw(int op) {
+	printf("Instruction: ldw");
+}
+
+void lea(int op) {
+
+}
+
+void rti(int op) {
+
+}
+
+void shf(int op) {
+
+}
+
+void stb(int op) {
+
+}
+
+void stw(int op) {
+
+}
+
+void trap(int op) {
+
+}
+
+void xor(int op) {
+
+}
+
+void nop(int op) {
+
+}
+
+void (*ops[22]) (int op) = {&br, &add, &ldb, &stb, &jsr, &and, &ldw, &stw, &rti, &xor, &nop, &nop, &jmp, &shf, &lea, &trap};
 
 void process_instruction(){
   /*  function: process_instruction
-   *  
-   *    Process one instruction at a time  
+   *
+   *    Process one instruction at a time
    *       -Fetch one instruction
-   *       -Decode 
+   *       -Decode
    *       -Execute
    *       -Update NEXT_LATCHES
    */
 	int CurrentInstruction = MEMORY[CURRENT_LATCHES.PC/2][1];
 	CurrentInstruction = CurrentInstruction << 8;
 	CurrentInstruction |= MEMORY[CURRENT_LATCHES.PC/2][0];
-	printf("PC is at %04x and instr is %04x\n", CURRENT_LATCHES.PC, CurrentInstruction);
-}
 
+	NEXT_LATCHES.PC += 2;
+	ops[CurrentInstruction>>12](CurrentInstruction);
+}
