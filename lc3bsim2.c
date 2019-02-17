@@ -434,7 +434,15 @@ short SEXT(short x, int len) {
 		return x;
 }
 
-//short signed addition works
+/*
+ * Read two bytes from memory
+ */
+int readWord(int addr) {
+	int rval = MEMORY[addr/2][1];
+	rval = rval << 8;
+	rval |= MEMORY[addr/2][0];
+	return rval;
+}
 
 void add(int op) {
 	short dr;
@@ -483,7 +491,7 @@ void br(int op) {
 	if ((n && CURRENT_LATCHES.N) ||
 		(z && CURRENT_LATCHES.Z) ||
 		(p && CURRENT_LATCHES.P))
-		NEXT_LATCHES.PC = NEXT_LATCHES.PC + (SEXT(PCoffset9) << 1); //Probably should not left shift? PC is stored as /2
+		NEXT_LATCHES.PC = NEXT_LATCHES.PC + (SEXT(PCoffset9, 9) << 1); //Probably should not left shift? PC is stored as /2
 }
 
 void jmp(int op) {
@@ -509,7 +517,7 @@ void ldb(int op) {
 
 	int addr = BaseR + SEXT(boffset6, 6);
 
-	NEXT_LATCHES.REGS[dr] = SEXT(MEMORY[addr/2][addr%2]);
+	NEXT_LATCHES.REGS[dr] = SEXT(MEMORY[addr/2][addr%2], 8);
 	setCC(NEXT_LATCHES.REGS[dr]);
 }
 
@@ -531,31 +539,74 @@ void ldw(int op) {
 }
 
 void lea(int op) {
+	short dr = getBits(op, 11, 9);
+	short PCoffset9 = getBits(op, 8, 0);
 
+	NEXT_LATCHES.REGS[dr] = NEXT_LATCHES.PC + (SEXT(PCoffset9, 9) << 1);
+	setCC(NEXT_LATCHES.REGS[dr]);
 }
 
 void rti(int op) {
-
+	//Check psr[15] for privilege mode violation
+	NEXT_LATCHES.PC = readWord(CURRENT_LATCHES.REGS[6]);
+	CURRENT_LATCHES.REGS[6] += 2;
+	int TEMP = readWord(CURRENT_LATCHES.REGS[6]);
+	CURRENT_LATCHES.REGS[6] += 2;
+	//TODO: put PSR value into non-existent PSR variable
 }
 
 void shf(int op) {
+	short dr = getBits(op, 11, 9);
+	short sr = getBits(op, 8, 6);
+	short amount4 = getBits(op, 3, 0);
 
+	if (op & 0x10) { // Right shift
+		if (op & 0x20) { // Arithmetic shift
+			CURRENT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr] >> amount4;
+			if (CURRENT_LATCHES.REGS[sr] & 0x8000) {
+				CURRENT_LATCHES.REGS[dr] |= 0xFFFF << (16 - amount4);
+			}
+		} else { // Logical shift
+			CURRENT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr] >> amount4;
+		}
+	} else { // Left shift
+		CURRENT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr] << amount4;
+	}
+
+	setCC(CURRENT_LATCHES.REGS[dr]);
 }
 
 void stb(int op) {
-
+	int addr = getBits(op, 8, 6) + SEXT(getBits(op, 5, 0), 6);
+	int val = CURRENT_LATCHES.REGS[getBits(op, 11, 9)] & 0x00FF;
+	MEMORY[addr/2][addr%2] = val;
 }
 
 void stw(int op) {
-
+	int addr = getBits(op, 8, 6) + SEXT(getBits(op, 5, 0), 6);
+	//if (addr & 0x01) //illegal operand exception
+	int val = CURRENT_LATCHES.REGS[getBits(op, 11, 9)];
+	MEMORY[addr/2][0] = val & 0x00FF;
+	MEMORY[addr/2][1] = val >> 8;
 }
 
 void trap(int op) {
-
+	NEXT_LATCHES.REGS[7] = NEXT_LATCHES.PC;
+	NEXT_LATCHES.PC = readWord(getBits(op, 7, 0) << 1);
 }
 
 void xor(int op) {
+	short dr = getBits(op, 11, 9);
+	short sr1 = getBits(op, 8, 6);
+	if (op & 20) { // Immediate
+		short imm5 = getBits(op, 4, 0);
+		CURRENT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr1] ^ SEXT(imm5, 5);
+	} else { // Register
+		short sr2 = getBits(op, 2, 0);
+		CURRENT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr1] ^ CURRENT_LATCHES.REGS[sr2];
+	}
 
+	setCC(CURRENT_LATCHES.REGS[dr]);
 }
 
 void nop(int op) {
