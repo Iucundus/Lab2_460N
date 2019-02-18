@@ -526,15 +526,11 @@ void ldw(int op) {
 	short dr = getBits(op, 11, 9);
 	short BaseR = getBits(op, 8, 6);
 	short offset6 = getBits(op, 5, 0);
+	int addr = NEXT_LATCHES.REGS[BaseR] + SEXT(offset6, 6);
 
-	/*
-	 * if (CURRENT_LATCHES[BaseR] & 0x01)
-	 * 		illegal operand exception
-	 */
-
-	NEXT_LATCHES.REGS[dr] = MEMORY[BaseR + (SEXT(offset6, 6) << 1)][1];
+	NEXT_LATCHES.REGS[dr] = MEMORY[addr/2][1];
 	NEXT_LATCHES.REGS[dr] = NEXT_LATCHES.REGS[dr] << 8;
-	NEXT_LATCHES.REGS[dr] |= MEMORY[BaseR + (SEXT(offset6, 6) << 1)][0];
+	NEXT_LATCHES.REGS[dr] |= MEMORY[addr/2][0];
 
 	setCC(NEXT_LATCHES.REGS[dr]);
 }
@@ -584,8 +580,7 @@ void stb(int op) {
 }
 
 void stw(int op) {
-	int addr = getBits(op, 8, 6) + SEXT(getBits(op, 5, 0), 6);
-	//if (addr & 0x01) //illegal operand exception
+	int addr = CURRENT_LATCHES.REGS[getBits(op, 8, 6)] + SEXT(getBits(op, 5, 0), 6);
 	int val = CURRENT_LATCHES.REGS[getBits(op, 11, 9)];
 	MEMORY[addr/2][0] = val & 0x00FF;
 	MEMORY[addr/2][1] = val >> 8;
