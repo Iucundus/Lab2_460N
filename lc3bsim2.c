@@ -1,12 +1,8 @@
 /*
-    Remove all unnecessary lines (including this one) 
-    in this comment.
-    REFER TO THE SUBMISSION INSTRUCTION FOR DETAILS
-
-    Name 1: Full name of the first partner 
-    Name 2: Full name of the second partner
-    UTEID 1: UT EID of the first partner
-    UTEID 2: UT EID of the second partner
+    Name 1: John Koelling
+    Name 2: Grayson Watkins
+    UTEID 1: jkk887
+    UTEID 2: gaw874
 */
 
 /***************************************************************/
