@@ -500,7 +500,7 @@ void jmp(int op) {
 }
 
 void jsr(int op) {
-	NEXT_LATCHES.REGS[7] = NEXT_LATCHES.PC;
+	int TEMP = NEXT_LATCHES.PC;
 	if (op & 0x0800) { // PC offset
 		short PCoffset11 = getBits(op, 10, 0);
 		NEXT_LATCHES.PC = NEXT_LATCHES.PC + (SEXT(PCoffset11, 11) << 1); //Left shift, again?
@@ -508,6 +508,7 @@ void jsr(int op) {
 		short BaseR = getBits(op, 8, 6);
 		NEXT_LATCHES.PC = CURRENT_LATCHES.REGS[BaseR];
 	}
+	NEXT_LATCHES.REGS[7] = TEMP;
 }
 
 void ldb(int op) {
