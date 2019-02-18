@@ -516,7 +516,7 @@ void ldb(int op) {
 	short BaseR = getBits(op, 8, 6);
 	short boffset6 = getBits(op, 5, 0);
 
-	int addr = BaseR + SEXT(boffset6, 6);
+	int addr = NEXT_LATCHES.REGS[BaseR] + SEXT(boffset6, 6);
 
 	NEXT_LATCHES.REGS[dr] = SEXT(MEMORY[addr/2][addr%2], 8);
 	setCC(NEXT_LATCHES.REGS[dr]);
@@ -574,7 +574,7 @@ void shf(int op) {
 }
 
 void stb(int op) {
-	int addr = getBits(op, 8, 6) + SEXT(getBits(op, 5, 0), 6);
+	int addr = CURRENT_LATCHES.REGS[getBits(op, 8, 6)] + SEXT(getBits(op, 5, 0), 6);
 	int val = CURRENT_LATCHES.REGS[getBits(op, 11, 9)] & 0x00FF;
 	MEMORY[addr/2][addr%2] = val;
 }
