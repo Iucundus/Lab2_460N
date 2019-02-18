@@ -624,6 +624,6 @@ void process_instruction(){
 	CurrentInstruction = CurrentInstruction << 8;
 	CurrentInstruction |= MEMORY[CURRENT_LATCHES.PC/2][0];
 
-	NEXT_LATCHES.PC ++;
+	NEXT_LATCHES.PC += 2;
 	ops[CurrentInstruction>>12](CurrentInstruction);
 }
