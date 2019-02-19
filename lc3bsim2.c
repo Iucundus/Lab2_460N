@@ -487,7 +487,7 @@ void br(int op) {
 	if ((n && CURRENT_LATCHES.N) ||
 		(z && CURRENT_LATCHES.Z) ||
 		(p && CURRENT_LATCHES.P))
-		NEXT_LATCHES.PC = NEXT_LATCHES.PC + (SEXT(PCoffset9, 9) << 1); //Probably should not left shift? PC is stored as /2
+		NEXT_LATCHES.PC = NEXT_LATCHES.PC + (SEXT(PCoffset9, 9) << 1);
 }
 
 void jmp(int op) {
@@ -555,24 +555,24 @@ void shf(int op) {
 
 	if (op & 0x10) { // Right shift
 		if (op & 0x20) { // Arithmetic shift
-			CURRENT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr] >> amount4;
-			if (CURRENT_LATCHES.REGS[sr] & 0x8000) {
-				CURRENT_LATCHES.REGS[dr] |= 0xFFFF << (16 - amount4);
+			NEXT_LATCHES.REGS[dr] = NEXT_LATCHES.REGS[sr] >> amount4;
+			if (NEXT_LATCHES.REGS[sr] & 0x8000) {
+				NEXT_LATCHES.REGS[dr] |= 0xFFFF << (16 - amount4);
 			}
 		} else { // Logical shift
-			CURRENT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr] >> amount4;
+			NEXT_LATCHES.REGS[dr] = NEXT_LATCHES.REGS[sr] >> amount4;
 		}
 	} else { // Left shift
-		CURRENT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr] << amount4;
+		NEXT_LATCHES.REGS[dr] = NEXT_LATCHES.REGS[sr] << amount4;
 	}
 
-	setCC(CURRENT_LATCHES.REGS[dr]);
+	setCC(NEXT_LATCHES.REGS[dr]);
 }
 
 void stb(int op) {
 	int addr = CURRENT_LATCHES.REGS[getBits(op, 8, 6)] + SEXT(getBits(op, 5, 0), 6);
 	int val = CURRENT_LATCHES.REGS[getBits(op, 11, 9)] & 0x00FF;
-	MEMORY[addr/2][addr%2] = val;
+	MEMORY[addr/2][addr%2] = Low16Bits(val);
 }
 
 void stw(int op) {
@@ -592,13 +592,13 @@ void xor(int op) {
 	short sr1 = getBits(op, 8, 6);
 	if (op & 20) { // Immediate
 		short imm5 = getBits(op, 4, 0);
-		CURRENT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr1] ^ SEXT(imm5, 5);
+		NEXT_LATCHES.REGS[dr] = NEXT_LATCHES.REGS[sr1] ^ SEXT(imm5, 5);
 	} else { // Register
 		short sr2 = getBits(op, 2, 0);
-		CURRENT_LATCHES.REGS[dr] = CURRENT_LATCHES.REGS[sr1] ^ CURRENT_LATCHES.REGS[sr2];
+		NEXT_LATCHES.REGS[dr] = NEXT_LATCHES.REGS[sr1] ^ NEXT_LATCHES.REGS[sr2];
 	}
 
-	setCC(CURRENT_LATCHES.REGS[dr]);
+	setCC(NEXT_LATCHES.REGS[dr]);
 }
 
 void nop(int op) {
@@ -621,5 +621,8 @@ void process_instruction(){
 	CurrentInstruction |= MEMORY[CURRENT_LATCHES.PC/2][0];
 
 	NEXT_LATCHES.PC += 2;
+	for (int i = 0; i < 8; i++) {
+		NEXT_LATCHES.REGS[i] = Low16Bits(NEXT_LATCHES.REGS[i]);
+	}
 	ops[CurrentInstruction>>12](CurrentInstruction);
 }
